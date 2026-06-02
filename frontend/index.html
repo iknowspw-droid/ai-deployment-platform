@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cloud Platform Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-slate-800 p-4 shadow-md border-b border-slate-700">
+        <h1 class="text-xl font-bold text-cyan-400">AI App Deployment Platform</h1>
+        <p class="text-xs text-slate-400">Connected to Local Kubernetes Architecture Namespace</p>
+    </header>
+
+    <main id="chat-window" class="flex-1 p-4 overflow-y-auto max-w-3xl w-full mx-auto space-y-4">
+        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 max-w-md">
+            <p class="text-xs font-semibold text-cyan-400 mb-1">System Node</p>
+            <p class="text-sm">Hello! I am containerized and ready. Ask me anything.</p>
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 p-4 border-t border-slate-700">
+        <form id="chat-form" class="max-w-3xl w-full mx-auto flex gap-2">
+            <input type="text" id="user-input" placeholder="Type your prompt here..." 
+                   class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100">
+            <button type="submit" 
+                    class="bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold px-5 py-2 rounded-lg text-sm transition-colors">
+                Send
+            </button>
+        </form>
+    </footer>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatWindow = document.getElementById('chat-window');
+
+        // Dynamic API routing logic configuration
+        // In Kubernetes, we will route traffic relative to the host
+        const BACKEND_URL = 'http://localhost:8000/chat';
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+
+            // 1. Append User Message to Window
+            appendMessage('You', prompt, 'bg-slate-700 text-right ml-auto');
+            userInput.value = '';
+
+            // 2. Create a "Thinking..." Placeholder
+            const thinkingId = appendMessage('Gemini AI', 'Thinking...', 'bg-slate-800 border border-slate-700 animate-pulse');
+
+            try {
+                // 3. Post data across to our FastAPI Backend Container
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                const data = await response.json();
+                
+                // 4. Update placeholder with true AI response
+                document.getElementById(thinkingId).querySelector('.msg-body').innerText = data.response;
+                document.getElementById(thinkingId).classList.remove('animate-pulse');
+
+            } catch (err) {
+                document.getElementById(thinkingId).querySelector('.msg-body').innerText = 'Error connecting to backend API service.';
+                document.getElementById(thinkingId).querySelector('.msg-body').classList.add('text-red-400');
+            }
+        });
+
+        function appendMessage(sender, text, classes) {
+            const id = 'msg-' + Date.now();
+            const msgHtml = `
+                <div id="${id}" class="p-3 rounded-lg max-w-md ${classes}">
+                    <p class="text-xs font-semibold ${sender === 'You' ? 'text-amber-400' : 'text-cyan-400'} mb-1">${sender}</p>
+                    <p class="text-sm msg-body">${text}</p>
+                </div>`;
+            chatWindow.insertAdjacentHTML('beforeend', msgHtml);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            return id;
+        }
+    </script>
+</body>
+</html>
